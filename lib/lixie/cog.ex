@@ -42,13 +42,27 @@ defmodule Lixie.Cog do
     quote location: :keep, bind_quoted: [opts: opts] do
       @behaviour Lixie.Cog
 
-      GenServer.__using__(opts)
+      use GenServer, opts
 
       def start_link(args) do
-        GenServer.start_link(__MODULE__, args, __MODULE__)
+        GenServer.start_link(__MODULE__, args, name: {:global, inspect(__MODULE__)})
       end
+
+      @impl true
+      def handle_call(:load, state) do
+        case __MODULE__.load(state) do
+          {:ok, state} -> {:reply, :ok, state}
+          {:error, reason, state} -> {:reply, {:error, reason}, state}
+        end
+      end
+
+      @impl true
+      def handle_call(:commands, state), do: {:reply, __MODULE__.commands(state), state}
     end
   end
+
+  @spec load(cog) :: :ok | {:error, reason} when cog: atom(), reason: term()
+  def load(cog), do: GenServer.call(cog, :load)
 
   @doc """
   Invoked before events are sent to the cog so it can do any setup work it needs to do, ie load
